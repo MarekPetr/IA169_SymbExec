@@ -74,7 +74,44 @@ class SymbolicExecutor(Interpreter):
         if condval is False:
             state.error = f"Assertion failed: {instruction}"
         return state
-        
+
+    def executeCmp(self, state):
+        cmpinst = state.pc
+        predicate = cmpinst.get_predicate()
+        a = state.eval(cmpinst.get_operand(0))
+        if a is None:
+            state.error = f"Using unknown value: {cmpinst.get_operand(0)}"
+            return state
+        b = state.eval(cmpinst.get_operand(1))
+        if b is None:
+            state.error = f"Using unknown value: {cmpinst.get_operand(1)}"
+            return state
+
+        s = Solver()
+        expr = False
+        if predicate == Cmp.LT:
+            s.add(a < b)
+        elif predicate == Cmp.LE:
+            s.add(a <= b)
+        elif predicate == Cmp.GT:
+            s.add(a > b)
+        elif predicate == Cmp.GE:
+            s.add(a >= b)
+        elif predicate == Cmp.EQ:
+            s.add(a == b)
+        elif predicate == Cmp.NE:
+            s.add(a != b)
+        else:
+            raise RuntimeError(f"Invalid comparison: {cmpinst}")
+
+        res = s.check() == CheckSatResult(Z3_L_TRUE)
+        print(type(res))
+        state.set(cmpinst, res)
+        if (res):
+            print(s.model())
+
+        return state
+
     def run(self):
         entryblock = program.get_entry()
         state = SymbolicExecutionState(entryblock[0])

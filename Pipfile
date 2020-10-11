@@ -6,8 +6,8 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-z3-solver = "*"
 z3 = "*"
+z3-solver = "*"
 pysmt = "*"
 
 [requires]
