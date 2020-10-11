@@ -1,0 +1,15 @@
+variables: x
+
+block entry:
+  t = load x
+  c1 = cmp ge t 0
+  jump c1 ass exit
+
+block ass:
+  x1 = load x
+  c = cmp ne x1 10
+  assert c
+
+block exit:
+  halt
+

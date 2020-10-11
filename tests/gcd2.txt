@@ -1,0 +1,50 @@
+variables: x y
+
+block entry:
+  ; store the input into x
+  store 28 to x
+  ; y is symbolic, but make it lesser or equal to the input
+  y0 = load y
+  x0 = load x
+  c0 = cmp le y0 x0
+  jump c0 prehead stop
+
+block prehead:
+  ; and greater than 0
+  ch = cmp gt y0 0
+  jump ch head stop
+
+block head:
+  x1 = load x
+  y1 = load y
+  cmp1 = cmp lt x1 y1
+  jump cmp1 xlty yltx
+
+block xlty:
+  d1 = sub y1 x1
+  store d1 to y
+  c1 = cmp eq d1 0
+  jump c1 end head
+
+block yltx:
+  d2 = sub x1 y1
+  store d2 to x
+  c2 = cmp eq d2 0
+  jump c2 end head
+
+block end:
+  y2 = load y
+  x2 = load x
+  r = add y2 x2
+  print r
+  cr = cmp gt r 1
+  jump cr nontrivialdiv stop
+
+block nontrivialdiv:
+  ; r is the gcd of x and y,
+  ; issue an error so that the number of paths
+  ; is the number of non-trivial divisors
+  assert false
+
+block stop:
+  halt

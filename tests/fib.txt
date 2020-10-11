@@ -1,0 +1,34 @@
+; compute the n-th fibbonacci number
+
+variables: n x y
+
+block entry:
+  ; compute the 10-th fibbonaci number
+  store 10 to n
+
+  store 1 to x
+  store 1 to y
+  jump true head head
+
+block head:
+  x1 = load x
+  y1 = load y
+  r2 = add x1 y1
+  store x1 to y
+  store r2 to x
+
+  ; debugging print
+  print x1 r2
+
+  ; decrease counter
+  on = load n
+  nn = sub on 1
+  store nn to n
+
+  cmp1 = cmp gt nn 0
+  jump cmp1 head end
+
+block end:
+  nthfib = load y
+  print nthfib
+

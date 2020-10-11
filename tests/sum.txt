@@ -1,0 +1,24 @@
+; sum variables from 0 to 10
+
+variables: x y
+
+block entry:
+  store 0 to x
+  store 0 to y
+  jump true head head
+
+block head:
+  x1 = load x
+  y1 = load y
+  r2 = add x1 y1
+  store r2 to y
+
+  r1 = add x1 1
+  store r1 to x
+  cmp1 = cmp lt x1 10
+  jump cmp1 head end
+
+block end:
+  y2 = load y
+  print y2
+

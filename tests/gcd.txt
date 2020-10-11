@@ -1,0 +1,32 @@
+variables: x y
+
+block entry:
+  ; store the inputs into y and x
+  store 28 to x
+  store 21 to y
+  jump true head head
+
+block head:
+  x1 = load x
+  y1 = load y
+  cmp1 = cmp lt x1 y1
+  jump cmp1 xlty yltx
+
+block xlty:
+  d1 = sub y1 x1
+  store d1 to y
+  c1 = cmp eq d1 0
+  jump c1 end head
+
+block yltx:
+  d2 = sub x1 y1
+  store d2 to x
+  c2 = cmp eq d2 0
+  jump c2 end head
+
+block end:
+  y2 = load y
+  x2 = load x
+  r = add y2 x2
+  print r
+

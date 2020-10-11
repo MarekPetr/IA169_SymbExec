@@ -1,0 +1,18 @@
+variables: x y
+
+block entry:
+  store 0 to x
+  jump true head head
+
+block head:
+  x1 = load x
+  r1 = add x1 1
+  store r1 to x
+  cmp1 = cmp lt x1 10
+  print x1
+  jump cmp1 head end
+
+block end:
+  x2 = load x
+  print x2
+

@@ -1,0 +1,19 @@
+variables: x y
+
+block entry:
+  store 3 to x
+  r1 = load x
+  ; y is not initialized, therefor gets
+  ; symbolic value
+  r2 = load y
+  r3 = add r1 r2
+  store r3 to x
+  c = cmp eq r3 5
+  jump c yes no
+
+block yes:
+  yesr = load x
+  print yesr
+
+block no:
+  assert false
