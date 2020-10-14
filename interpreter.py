@@ -128,8 +128,8 @@ class Interpreter:
 
             vals.append(val)
 
-        if vals:
-            print(" ".join(map(str, vals)))
+        #if vals:
+        #    print(" ".join(map(str, vals)))
 
         return state
 
@@ -179,7 +179,7 @@ class Interpreter:
     def executeInstruction(self, state):
         instruction = state.pc
         ty = instruction.get_ty()
-        print('executing:', instruction)
+        #print('executing:', instruction)
 
         if ty == Instruction.JUMP:
             return self.executeJump(state)

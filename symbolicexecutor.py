@@ -17,13 +17,14 @@ class SymbolicExecutionState(ExecutionState):
         # new.attr = old.attr, that would
         # only create a reference)
 
-        self.pathCond = [True]
+        self.path_cond = [True]
+        self.fork = False
 
     def copy(self):
         n = SymbolicExecutionState(self.pc)
         n.variables = self.variables.copy()
         n.values = self.values.copy()        
-        n.pathCond = self.pathCond.copy()
+        n.path_cond = self.path_cond.copy()
         n.error = self.error
         return n
 
@@ -60,6 +61,17 @@ class SymbolicExecutor(Interpreter):
         if state and state.error:
             raise RuntimeError(f"Execution error: {state.error}")
 
+    def forkJump(self, state, path_cond, op_idx):
+        jump = state.pc
+        s = Solver()
+        s.add(path_cond)
+        if s.check() == sat:
+            pc_state = state.copy()
+            successorblock = jump.get_operand(op_idx)
+            pc_state.path_cond = path_cond
+            pc_state.pc = successorblock[0]
+            self.stack.put(pc_state)
+
     def executeJump(self, state):
         
         jump = state.pc
@@ -72,32 +84,16 @@ class SymbolicExecutor(Interpreter):
                 or condval in [True, False])\
             , f"Invalid condition: {exprs}"
         
-        s = Solver()
-        pc = state.pathCond.copy()
+        pc = state.path_cond.copy()
         pc.append(condval)
+        self.forkJump(state, pc, 0)
 
-        s.add(pc)
-        if s.check() == sat:
-            pc_state = state.copy()
-            successorblock = jump.get_operand(0)
-            pc_state.pathCond.append(condval)
-            pc_state.pc = successorblock[0]
-            self.stack.put(pc_state)
-
-        s.reset()
-
-        not_pc = state.pathCond.copy()
+        not_pc = state.path_cond.copy()
         not_pc.append(Not(condval))
-
-        s.add(not_pc)
-        if s.check() == sat:
-            not_pc_state = state.copy()
-            successorblock = jump.get_operand(1)
-            not_pc_state.pathCond.append(condval)
-            not_pc_state.pc = successorblock[0]
-            self.stack.put(not_pc_state)
+        self.forkJump(state, not_pc, 1)
         
-        return None
+        state.fork = True
+        return state
 
     def executeMem(self, state):
         instruction = state.pc
@@ -126,37 +122,51 @@ class SymbolicExecutor(Interpreter):
             state.error = f"Using unknown value: {jump.get_condition()}"
             return state
 
-        # TODO FORK HERE
         assert isinstance(condval, BoolRef), f"Invalid condition: {condval}"
+
+        pc = state.path_cond.copy()
+        pc.append(condval)
+
         s = Solver()
-        s.add(condval)
-        print(s)
-        if s.check() == unsat:
-            print("fail")
+        s.add(pc)
+        if s.check() == sat:
+            pc_state = state.copy()
+            pc_state.pc = pc_state.pc.get_next_inst()
+            if not pc_state.pc:
+                self.executed_paths += 1
+            else:
+                self.stack.put(pc_state)        
+
+        s.reset()
+        not_pc = state.path_cond.copy()
+        not_pc.append(Not(condval))
+        s.add(not_pc)
+        if s.check() == sat:
             state.error = f"Assertion failed: {instruction}"
+
         return state
 
     def run(self):
         entryblock = program.get_entry()
         state = SymbolicExecutionState(entryblock[0])
+        self.stack.put(state)
 
-        while True:
+        
+        while not self.stack.empty():
+            state = self.stack.get()
+
             while state:
                 state = self.executeInstruction(state)
-                if state and state.error:
-                    print(state)
-                    self.errors += 1
-                    break
-            
-            if not self.stack.empty():
-                state = self.stack.get()
+                if state:
+                    if state.error:
+                        self.errors += 1
+                        self.executed_paths += 1                        
+                        break
+                    if state.fork:                        
+                        break
+
+            if state is None:
                 self.executed_paths += 1
-            else:
-                break
-        
-        # Paths count as leaves, if no leaves, paths = 1
-        if self.executed_paths == 0:
-            self.executed_paths = 1
 
         print(f"Executed paths: {self.executed_paths}")
         print(f"Error paths: {self.errors}")
