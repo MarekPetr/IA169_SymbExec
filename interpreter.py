@@ -68,6 +68,9 @@ class Interpreter:
         state.pc = successorblock[0]
         return state
 
+    def handleUninitVar(self, state):
+        state.error = f"Reading uninitialied variable: {op.get_name()}"
+
     def executeMem(self, state):
         instruction = state.pc
         ty = instruction.get_ty()
@@ -75,7 +78,7 @@ class Interpreter:
         if ty == Instruction.LOAD:
             value = state.read(op)
             if value is None:
-                state.error = f"Reading uninitialied variable: {op.get_name()}"
+                self.handleUninitVar(state)    
             else:
                 state.set(instruction, value)
         elif ty == Instruction.STORE:

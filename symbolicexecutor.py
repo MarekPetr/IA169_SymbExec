@@ -61,19 +61,30 @@ class SymbolicExecutor(Interpreter):
         if state and state.error:
             raise RuntimeError(f"Execution error: {state.error}")
 
+    def setUnknownSolverError(self, state, path_cond):
+        state.error = f"Solver failed for: {path_cond}"
+
     def forkJump(self, state, path_cond, op_idx):
         jump = state.pc
         s = Solver()
         s.add(path_cond)
-        if s.check() == sat:
+        res = s.check()
+        if res == sat:
             pc_state = state.copy()
             successorblock = jump.get_operand(op_idx)
             pc_state.path_cond = path_cond
             pc_state.pc = successorblock[0]
             self.stack.put(pc_state)
+        elif res == unknown:
+            setUnknownSolverError(state, path_cond)
+            return state
+
+    def getExtendedPathCond(self, state, condval):
+        path_cond = state.path_cond.copy()
+        path_cond.append(condval)
+        return path_cond
 
     def executeJump(self, state):
-        
         jump = state.pc
         condval = state.eval(jump.get_condition())
         if condval is None:
@@ -84,9 +95,8 @@ class SymbolicExecutor(Interpreter):
                 or condval in [True, False])\
             , f"Invalid condition: {exprs}"
         
-        pc = state.path_cond.copy()
-        pc.append(condval)
-        self.forkJump(state, pc, 0)
+        path_cond = self.getExtendedPathCond(state, condval)
+        self.forkJump(state, path_cond, 0)
 
         not_pc = state.path_cond.copy()
         not_pc.append(Not(condval))
@@ -95,25 +105,10 @@ class SymbolicExecutor(Interpreter):
         state.fork = True
         return state
 
-    def executeMem(self, state):
+    def handleUninitVar(self, state):
         instruction = state.pc
-        ty = instruction.get_ty()
         op = instruction.get_operand(0)
-        if ty == Instruction.LOAD:
-            value = state.read(op)
-            if value is None:
-                state.set(instruction, Int(op.get_name()))
-            else:
-                state.set(instruction, value)
-        elif ty == Instruction.STORE:
-            value = state.eval(op)
-            if value is None:
-                state.error = f"Using unknown value: {op}"
-            state.write(instruction.get_operand(1), value)
-        else:
-            raise RuntimeError(f"Invalid memory instruction: {instruction}")
-
-        return state
+        state.set(instruction, Int(op.get_name()))
     
     def executeAssert(self, state):
         instruction = state.pc
@@ -124,25 +119,30 @@ class SymbolicExecutor(Interpreter):
 
         assert isinstance(condval, BoolRef), f"Invalid condition: {condval}"
 
-        pc = state.path_cond.copy()
-        pc.append(condval)
-
+        path_cond = self.getExtendedPathCond(state, condval)
         s = Solver()
-        s.add(pc)
-        if s.check() == sat:
+        s.add(path_cond)
+        res = s.check()
+        if res == sat:
             pc_state = state.copy()
             pc_state.pc = pc_state.pc.get_next_inst()
             if not pc_state.pc:
                 self.executed_paths += 1
             else:
-                self.stack.put(pc_state)        
+                self.stack.put(pc_state)
+        elif res == unknown:
+            setUnknownSolverError(state, path_cond)
+            return state
 
         s.reset()
-        not_pc = state.path_cond.copy()
-        not_pc.append(Not(condval))
-        s.add(not_pc)
+        not_path_cond = self.getExtendedPathCond(state, Not(condval))
+        s.add(not_path_cond)
         if s.check() == sat:
             state.error = f"Assertion failed: {instruction}"
+
+        elif res == unknown:
+            state.error = f"Solver failed for: {not_path_cond}"
+            return state
 
         return state
 
@@ -151,19 +151,19 @@ class SymbolicExecutor(Interpreter):
         state = SymbolicExecutionState(entryblock[0])
         self.stack.put(state)
 
-        
         while not self.stack.empty():
             state = self.stack.get()
 
             while state:
                 state = self.executeInstruction(state)
-                if state:
-                    if state.error:
-                        self.errors += 1
-                        self.executed_paths += 1                        
-                        break
-                    if state.fork:                        
-                        break
+                if state is None:
+                    break
+                if state.error:
+                    self.errors += 1
+                    self.executed_paths += 1
+                    break
+                if state.fork:  
+                    break
 
             if state is None:
                 self.executed_paths += 1
