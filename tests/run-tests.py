@@ -21,8 +21,10 @@ def main(se):
     total, failed = 0, 0
     for program, nop, noe in TESTS:
         total += 1
-        cmd = [abspath(se), abspath(join(dirname(argv[0]), program))]
-        print('Running: ', " ".join(cmd))
+        cmd = ['python', abspath(se), abspath(join(dirname(argv[0]), program))]
+
+        #print('Running: ', " ".join(cmd))
+        print(f"Running: {program}")
         P = Popen(cmd, stdout=PIPE, stderr=PIPE)
         out, err = P.communicate()
         if out is None:

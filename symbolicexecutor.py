@@ -61,8 +61,8 @@ class SymbolicExecutor(Interpreter):
         if state and state.error:
             raise RuntimeError(f"Execution error: {state.error}")
 
-    def setUnknownSolverError(self, state, path_cond):
-        state.error = f"Solver failed for: {path_cond}"
+    def handleUnknownCheckSolver(self, path_cond):
+        raise RuntimeError(f"Solver failed for: {path_cond}")
 
     def forkJump(self, state, path_cond, op_idx):
         jump = state.pc
@@ -76,8 +76,7 @@ class SymbolicExecutor(Interpreter):
             pc_state.pc = successorblock[0]
             self.stack.put(pc_state)
         elif res == unknown:
-            setUnknownSolverError(state, path_cond)
-            return state
+            self.handleUnknownCheckSolver(path_cond)
 
     def getExtendedPathCond(self, state, condval):
         path_cond = state.path_cond.copy()
@@ -131,19 +130,16 @@ class SymbolicExecutor(Interpreter):
             else:
                 self.stack.put(pc_state)
         elif res == unknown:
-            setUnknownSolverError(state, path_cond)
-            return state
+            self.handleUnknownCheckSolver(path_cond)
 
         s.reset()
         not_path_cond = self.getExtendedPathCond(state, Not(condval))
         s.add(not_path_cond)
-        if s.check() == sat:
+        res = s.check()
+        if res == sat:
             state.error = f"Assertion failed: {instruction}"
-
         elif res == unknown:
-            state.error = f"Solver failed for: {not_path_cond}"
-            return state
-
+            self.handleUnknownCheckSolver(not_path_cond)
         return state
 
     def run(self):
@@ -162,9 +158,8 @@ class SymbolicExecutor(Interpreter):
                     self.errors += 1
                     self.executed_paths += 1
                     break
-                if state.fork:  
+                if state.fork:
                     break
-
             if state is None:
                 self.executed_paths += 1
 
