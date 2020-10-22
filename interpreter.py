@@ -182,7 +182,7 @@ class Interpreter:
     def executeInstruction(self, state):
         instruction = state.pc
         ty = instruction.get_ty()
-        print('executing:', instruction)
+        #print('executing:', instruction)
 
         if ty == Instruction.JUMP:
             return self.executeJump(state)

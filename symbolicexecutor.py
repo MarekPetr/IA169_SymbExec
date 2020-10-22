@@ -22,7 +22,7 @@ class SymbolicExecutionState(ExecutionState):
     def copy(self):
         n = SymbolicExecutionState(self.pc)
         n.variables = self.variables.copy()
-        n.values = self.values.copy()        
+        n.values = self.values.copy()
         n.path_cond = self.path_cond.copy()
         n.error = self.error
         return n
@@ -93,8 +93,8 @@ class SymbolicExecutor(Interpreter):
             return state
 
         assert (isinstance(condval, BoolRef) or isinstance(condval, list) 
-                or condval in [True, False])\
-            , f"Invalid condition: {exprs}"
+                or condval in [True, False]),\
+            f"Invalid condition: {exprs}"
         
         path_cond = self.getExtendedPathCond(state, condval)
         not_path_cond = self.getExtendedPathCond(state, Not(condval))
